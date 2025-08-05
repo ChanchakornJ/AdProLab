@@ -26,7 +26,7 @@ public class WordCountMapTask implements Callable<Map<String,FileFreq>> {
         Map<String, FileFreq> wordCount;
         PDFTextStripper reader = new PDFTextStripper();
         Pattern pattern = Pattern.compile(" ");
-            String s = reader.getText(doc.getDocument());// not sure
+            String s = reader.getText(doc.getDocument());
             this.wordCount = pattern.splitAsStream(s);
             wordCount = pattern.splitAsStream(s)
                 .map(word -> word.replaceAll("[^a-zA-Z]", "").toLowerCase().trim()).filter(word -> word.length() > 3)

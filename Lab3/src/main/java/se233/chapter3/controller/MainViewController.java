@@ -1,13 +1,13 @@
 package se233.chapter3.controller;
 
+import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
-import javafx.scene.control.Button;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.*;
 import javafx.scene.input.Dragboard;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -28,12 +28,15 @@ import java.util.concurrent.Future;
 
 public class MainViewController {
     LinkedHashMap<String, List<FileFreq>> uniqueSets;
+    private Map<String, String> filePathMap = new LinkedHashMap<>();
     @FXML
     private ListView<String> inputListView;
     @FXML
     private Button startButton;
     @FXML
     private ListView listView;
+    @FXML
+    private MenuItem close;
     @FXML
     public void initialize() {
         inputListView.setOnDragOver(event -> {
@@ -58,7 +61,9 @@ public class MainViewController {
 
                         File file = db.getFiles().get(i);
                         filePath = file.getAbsolutePath();
-                        inputListView.getItems().add(filePath);
+                        String fileName = file.getName();
+                        inputListView.getItems().add(fileName);
+                        filePathMap.put(fileName, filePath);
                 }
 
             }
@@ -81,7 +86,8 @@ public class MainViewController {
                     Map<String, FileFreq>[] wordMap = new Map[total_files];
                     for (int i = 0; i < total_files; i++) {
                         try {
-                            String filePath = inputListViewItems.get(i);
+                            String fileName = inputListViewItems.get(i);
+                            String filePath = filePathMap.get(fileName);
                             PdfDocument p = new PdfDocument(filePath);
                             completionService.submit(new WordCountMapTask(p));
                         } catch (IOException e) {
@@ -98,8 +104,7 @@ public class MainViewController {
                     }
                     try {
                         WordCountReduceTask merger = new WordCountReduceTask(wordMap);
-                        Future<LinkedHashMap<String, List<FileFreq>>> future = executor.submit(
-                                merger);
+                        Future<LinkedHashMap<String, List<FileFreq>>> future = executor.submit(merger);
                         uniqueSets = future.get();
                         listView.getItems().addAll(uniqueSets.keySet());
                     } catch (Exception e) {
@@ -117,13 +122,17 @@ public class MainViewController {
             thread.setDaemon(true);
             thread.start();
             });
+
             listView.setOnMouseClicked(event -> {
             List<FileFreq> listOfLinks = uniqueSets.get(listView.getSelectionModel().getSelectedItem());
             ListView<FileFreq> popupListView = new ListView<>();
             LinkedHashMap<FileFreq,String> lookupTable = new LinkedHashMap<>();
-            for (int i=0 ; i<listOfLinks.size() ; i++) {
-                lookupTable.put(listOfLinks.get(i),listOfLinks.get(i).getPath());
-                popupListView.getItems().add(listOfLinks.get(i));
+
+            listOfLinks.sort((f1, f2) -> Integer.compare(f2.getFreq(), f1.getFreq()));
+
+            for (FileFreq fileFreq : listOfLinks) {
+                lookupTable.put(fileFreq, fileFreq.getPath());
+                popupListView.getItems().add(fileFreq);
             }
             popupListView.setPrefWidth(Region.USE_COMPUTED_SIZE);
             popupListView.setPrefHeight(popupListView.getItems().size() * 40);
@@ -134,6 +143,20 @@ public class MainViewController {
             Popup popup = new Popup();
             popup.getContent().add(popupListView);
             popup.show(Launcher.primaryStage);
+                popupListView.requestFocus();
+
+
+                popupListView.setOnKeyPressed(k -> {
+                    if (k.getCode() == KeyCode.ESCAPE) {
+                        popup.hide();
+                    }
+                });
         });
+
+            close.setOnAction(event ->{
+                Platform.exit();
+            });
+
         }
+
     }

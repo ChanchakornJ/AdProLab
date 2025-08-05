@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 public class WordCountReduceTask implements Callable<LinkedHashMap<String, List<FileFreq>>> {
     private Map<String, FileFreq>[] wordMap;
-    LinkedHashMap<String, List<FileFreq>> uniqueSets; //not sure
+    LinkedHashMap<String, List<FileFreq>> uniqueSets;
 
     public WordCountReduceTask(Map<String, FileFreq>[] wordMap) {
         this.wordMap = wordMap;
@@ -20,8 +20,7 @@ public class WordCountReduceTask implements Callable<LinkedHashMap<String, List<
         List<Map<String, FileFreq>> wordMapList = new ArrayList<>(Arrays.asList(wordMap)) ;
         uniqueSets = wordMapList.stream()
                 .flatMap(m -> m.entrySet().stream())
-                .collect(Collectors.groupingBy(
-                        e->e.getKey(),
+                .collect(Collectors.groupingBy(e->e.getKey(),
                         Collector.of(
                                 () -> new ArrayList<FileFreq>(),
                                 (list, item) -> list.add(item.getValue()),
@@ -29,7 +28,13 @@ public class WordCountReduceTask implements Callable<LinkedHashMap<String, List<
                                     current_list.addAll(new_items);
                                     return current_list; })
                 ))
-        .entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .entrySet().stream()
+                .sorted((e1, e2) -> {
+                    int sum1 = e1.getValue().stream().mapToInt(FileFreq::getFreq).sum();
+                    int sum2 = e2.getValue().stream().mapToInt(FileFreq::getFreq).sum();
+                    int cmp = Integer.compare(sum2, sum1);
+                    return (cmp != 0) ? cmp : e1.getKey().compareToIgnoreCase(e2.getKey());
+                })
                 .collect(Collectors. toMap(e->e.getKey(),e->e.getValue(),
                         (v1, v2) -> v1, () -> new LinkedHashMap<>()));
         return uniqueSets;
