@@ -106,7 +106,29 @@ public class MainViewController {
                         WordCountReduceTask merger = new WordCountReduceTask(wordMap);
                         Future<LinkedHashMap<String, List<FileFreq>>> future = executor.submit(merger);
                         uniqueSets = future.get();
-                        listView.getItems().addAll(uniqueSets.keySet());
+
+                        Platform.runLater(() -> {
+                            listView.getItems().clear();
+
+                            List<String> allFileNames = inputListView.getItems();
+
+                            for (Map.Entry<String, List<FileFreq>> entry : uniqueSets.entrySet()) {
+                                String word = entry.getKey();
+                                List<FileFreq> fileFreqList = entry.getValue();
+
+                                String freqs = allFileNames.stream()
+                                        .map(fileName -> fileFreqList.stream()
+                                                .filter(ff -> new File(ff.getPath()).getName().equals(fileName))
+                                                .map(FileFreq::getFreq)
+                                                .findFirst()
+                                                .orElse(0))
+                                        .map(String::valueOf)
+                                        .collect(java.util.stream.Collectors.joining(", "));
+
+                                String formatted = word + " (" + freqs + ")";
+                                listView.getItems().add(formatted);
+                            }
+                        });
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
@@ -124,7 +146,10 @@ public class MainViewController {
             });
 
             listView.setOnMouseClicked(event -> {
-            List<FileFreq> listOfLinks = uniqueSets.get(listView.getSelectionModel().getSelectedItem());
+                String selectedText = (String) listView.getSelectionModel().getSelectedItem();
+                if (selectedText == null) return;
+                String word = selectedText.contains(" (") ? selectedText.substring(0, selectedText.indexOf(" (")) : selectedText;
+                List<FileFreq> listOfLinks = uniqueSets.get(word);
             ListView<FileFreq> popupListView = new ListView<>();
             LinkedHashMap<FileFreq,String> lookupTable = new LinkedHashMap<>();
 
